@@ -1,0 +1,57 @@
+{% block content %}
+<h1>Todo List</h1>
+{% for item in items %}
+<h3>{{ item.title }}</h3>
+<p>{{ item.description }}</p>
+<p>{{ item.created_at }}</p>
+<p>
+    Completed: {{ item.completed }}
+    {% if not item.completed %}
+<form action="{% url 'update_todo' item.id %}" method="POST">
+  {% csrf_token %}
+  <input
+    type="checkbox"
+    name="completed"
+    {%
+    if
+    item.completed
+    %}checked{%
+    endif
+    %}
+    onchange="this.form.submit()"
+  />
+</form>
+{% endif %}
+</p>
+{% empty %}
+<li>No items found.</li>
+{% endfor %} Note that we pass the item.id as a parameter to the url template
+tag to generate the URL for updating the todo item.
+
+<form method="POST" action="{% url 'add_todo' %}">
+  {% csrf_token %}
+  <input type="text" name="title" placeholder="Enter title" />
+  <input type="text" name="description" placeholder="Enter description" />
+  <button type="submit">Add Item</button>
+</form>
+{% endblock %} {% block javascript %}
+<script>
+  function updateTodoItem(event, itemId) {
+    const form = event.target.closest("form");
+    const formData = new FormData(form);
+    fetch(form.action, {
+      method: "POST",
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        const todoItem = document.querySelector(`[data-id='${itemId}']`);
+        if (data.completed) {
+          todoItem.classList.add("completed");
+        } else {
+          todoItem.classList.remove("completed");
+        }
+      });
+  }
+</script>
+{% endblock %}
