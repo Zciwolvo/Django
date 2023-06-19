@@ -1,0 +1,93 @@
+{% extends 'base.html' %} {% block content %} {%csrf_token%}
+<h1>{{ table_name }}</h1>
+
+<table id="editable-table" class="table table-bordered">
+  <thead>
+    <tr>
+      {% for column in columns %}
+      <th>{{ column }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in data %}
+    <tr>
+      {% for value in row %}
+      <td>{{ value }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $(document).ready(function () {
+    function getCookie(name) {
+      var cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        var cookies = document.cookie.split(";");
+        for (var i = 0; i < cookies.length; i++) {
+          var cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    $("#editable-table td").click(function () {
+      var $cell = $(this);
+      var value = $cell.text().trim();
+      var $input = $('<input type="text" class="form-control">').val(value);
+      $cell.html($input);
+
+      $input.focus();
+
+      $input.blur(function () {
+        var newValue = $input.val().trim();
+        $cell.html(newValue);
+
+        if (newValue !== value) {
+          var rowData = $cell
+            .closest("tr")
+            .find("td")
+            .map(function () {
+              return $(this).text().trim();
+            })
+            .get();
+
+          var updateData = {
+            table_name: "{{ table_name }}",
+            row_id: $cell.closest("tr").index(),
+            row_data: rowData,
+            csrfmiddlewaretoken: getCookie("csrftoken"),
+          };
+
+          $.ajax({
+            url: "{% url 'update_table' %}",
+            method: "POST",
+            headers: {
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
+            data: {
+              table_name: "{{ table_name }}",
+              row_id: $cell.closest("tr").index(),
+              row_data: rowData,
+            },
+            success: function (response) {
+              console.log(response);
+            },
+            error: function (xhr, status, error) {
+              console.log(xhr.responseText);
+            },
+          });
+        }
+      });
+    });
+  });
+</script>
+
+{% endblock %}
