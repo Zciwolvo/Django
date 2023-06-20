@@ -1,11 +1,17 @@
-{% extends 'base.html' %} {% block content %} {%csrf_token%}
+{% extends 'base.html' %} {% block content %} {% csrf_token %}
+
 <h1>{{ table_name }}</h1>
 
 <table id="editable-table" class="table table-bordered">
   <thead>
     <tr>
       {% for column in columns %}
-      <th>{{ column }}</th>
+      <th>
+        <a
+          href="{% url 'order_table' table_name=table_name column_name=column %}"
+          >{{column}}</a
+        >
+      </th>
       {% endfor %}
     </tr>
   </thead>
@@ -89,5 +95,4 @@
     });
   });
 </script>
-
 {% endblock %}
