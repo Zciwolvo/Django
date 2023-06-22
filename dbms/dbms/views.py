@@ -1,24 +1,27 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.db import connection
 from django.http import JsonResponse
 from django.apps import apps
+from django.contrib import messages
+
+
+def load_table_names_selected():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
+        )
+        tables = [row[0] for row in cursor.fetchall()]
+
+    tables = [name for name in tables if not name.startswith(("django", "auth", "sys"))]
+    return tables
 
 
 def table_list_view(request):
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE';"
-        )
-        table_names = [row[0] for row in cursor.fetchall()]
-
-    filtered_table_names = [
-        name for name in table_names if not name.startswith(("django", "auth", "sys"))
-    ]
-
+    filtered_table_names = load_table_names_selected()
     return render(request, "table_list.html", {"table_names": filtered_table_names})
 
 
-def table_detail_view(request, table_name):
+def load_from_table(table_name):
     with connection.cursor() as cursor:
         cursor.execute(
             f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table_name}';"
@@ -27,7 +30,11 @@ def table_detail_view(request, table_name):
 
         cursor.execute(f"SELECT * FROM {table_name};")
         data = cursor.fetchall()
+        return data, columns
 
+
+def table_detail_view(request, table_name):
+    data, columns = load_from_table(table_name)
     return render(
         request,
         "table_detail.html",
@@ -120,8 +127,26 @@ def order_table(request, table_name, column_name):
     # Check if the column is a BinaryField
     field_type = table_model._meta.get_field(column_name_lower).get_internal_type()
     if field_type == "BinaryField":
-        # Return a redirect to the table_detail view without any changes
-        return redirect("table_detail", table_name=table_name)
+        # Display an error message on the table_detail page
+        messages.error(request, "Table cannot be ordered by BinaryField data type!")
+
+        # Fetch the column names from the database using raw SQL query
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table_name}';"
+            )
+            columns = [row[0] for row in cursor.fetchall()]
+
+        # Prepare the data to be passed to the template
+        table_data = []
+
+        context = {
+            "table_name": table_name,
+            "columns": columns,
+            "data": table_data,
+        }
+
+        return render(request, "table_detail.html", context)
 
     # Determine the ordering string based on the new order
     ordering = (
@@ -156,3 +181,62 @@ def order_table(request, table_name, column_name):
     }
 
     return render(request, "table_detail.html", context)
+
+
+def get_columns(request, table_name):
+    if not table_name:
+        return JsonResponse({"error": "Table name is required"}, status=400)
+
+    table_model = apps.get_model(app_label="dbms", model_name=table_name.lower())
+    column_names = [field.name for field in table_model._meta.fields if field.db_column]
+
+    return JsonResponse(column_names, safe=False)
+
+
+def load_data_ordered(table_name, order, dir):
+    table_model = apps.get_model(app_label="dbms", model_name=table_name)
+    field_type = table_model._meta.get_field(order.lower()).get_internal_type()
+    if field_type != "BinaryField":
+        with connection.cursor() as cursor:
+            if dir == "DESC":
+                cursor.execute(f"SELECT * FROM {table_name} ORDER BY {order} DESC;")
+                data = cursor.fetchall()
+            else:
+                cursor.execute(f"SELECT * FROM {table_name} ORDER BY {order} ASC;")
+                data = cursor.fetchall()
+            return data
+    elif field_type == "BinaryField":
+        return None
+
+
+def load_tables(request):
+    tables = load_table_names_selected()
+    table_name = request.POST.get("table")
+    column_name = request.POST.get("column")
+    column_order = request.POST.get("column-order")
+    context = {"tables": tables}
+    if table_name is not None:
+        if column_name is not None:
+            data, columns = load_from_table(table_name)
+            data = load_data_ordered(table_name, column_name, column_order)
+            if data is None:
+                messages.error(request, "Cannot order by BinaryField!")
+            else:
+                context = {
+                    "tables": tables,
+                    "table_name": table_name,
+                    "table_data": data,
+                    "table_columns": columns,
+                }
+        else:
+            data, columns = load_from_table(table_name)
+            context = {
+                "tables": tables,
+                "table_name": table_name,
+                "table_data": data,
+                "table_columns": columns,
+            }
+    else:
+        messages.error(request, "Table must be selected")
+
+    return render(request, "analytics.html", context)

@@ -9,7 +9,7 @@
       <th>
         <a
           href="{% url 'order_table' table_name=table_name column_name=column %}"
-          >{{column}}</a
+          >{{ column }}</a
         >
       </th>
       {% endfor %}
@@ -19,7 +19,11 @@
     {% for row in data %}
     <tr>
       {% for value in row %}
-      <td>{{ value }}</td>
+      <td>
+        {% if forloop.first %} {{ value }} {% else %}
+        <span class="editable-cell">{{ value }}</span>
+        {% endif %}
+      </td>
       {% endfor %}
     </tr>
     {% endfor %}
@@ -44,7 +48,7 @@
       return cookieValue;
     }
 
-    $("#editable-table td").click(function () {
+    $(".editable-cell").click(function () {
       var $cell = $(this);
       var value = $cell.text().trim();
       var $input = $('<input type="text" class="form-control">').val(value);

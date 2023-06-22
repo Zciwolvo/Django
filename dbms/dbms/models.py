@@ -72,7 +72,7 @@ class Kategorie(models.Model):
 
 class Klienci(models.Model):
     idklienta = models.CharField(
-        db_column="IDklienta", max_length=5, blank=True, null=True
+        db_column="IDklienta", max_length=5, primary_key=True
     )  # Field name made lowercase.
     nazwafirmy = models.CharField(
         db_column="NazwaFirmy", max_length=40
@@ -110,27 +110,9 @@ class Klienci(models.Model):
         db_table = "Klienci"
 
 
-class Pozycjezamówienia(models.Model):
-    idzamówienia = models.IntegerField(
-        db_column="IDzamówienia", blank=True, null=True
-    )  # Field name made lowercase.
-    idproduktu = models.IntegerField(
-        db_column="IDproduktu"
-    )  # Field name made lowercase.
-    cenajednostkowa = models.DecimalField(
-        db_column="CenaJednostkowa", max_digits=19, decimal_places=4
-    )  # Field name made lowercase.
-    ilość = models.SmallIntegerField(db_column="Ilość")  # Field name made lowercase.
-    rabat = models.FloatField(db_column="Rabat")  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = "PozycjeZamówienia"
-
-
 class Pracownicy(models.Model):
     idpracownika = models.IntegerField(
-        db_column="IDpracownika"
+        db_column="IDpracownika", primary_key=True
     )  # Field name made lowercase.
     nazwisko = models.CharField(
         db_column="Nazwisko", max_length=20
@@ -188,17 +170,25 @@ class Pracownicy(models.Model):
 
 class Produkty(models.Model):
     idproduktu = models.IntegerField(
-        db_column="IDproduktu"
+        db_column="IDproduktu", primary_key=True
     )  # Field name made lowercase.
     nazwaproduktu = models.CharField(
         db_column="NazwaProduktu", max_length=40
     )  # Field name made lowercase.
-    iddostawcy = models.IntegerField(
-        db_column="IDdostawcy", blank=True, null=True
-    )  # Field name made lowercase.
-    idkategorii = models.IntegerField(
-        db_column="IDkategorii", blank=True, null=True
-    )  # Field name made lowercase.
+    iddostawcy = models.ForeignKey(
+        Dostawcy,
+        db_column="IDdostawcy",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+    )
+    idkategorii = models.ForeignKey(
+        Kategorie,
+        db_column="IDkategorii",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+    )
     ilośćjednostkowa = models.CharField(
         db_column="IlośćJednostkowa", max_length=255, blank=True, null=True
     )  # Field name made lowercase.
@@ -225,9 +215,27 @@ class Produkty(models.Model):
         db_table = "Produkty"
 
 
+class Pozycjezamówienia(models.Model):
+    idzamówienia = models.IntegerField(
+        db_column="IDzamówienia", primary_key=True
+    )  # Field name made lowercase.
+    idproduktu = models.ForeignKey(
+        Produkty, db_column="IDproduktu", on_delete=models.CASCADE
+    )  # Field name made lowercase.
+    cenajednostkowa = models.DecimalField(
+        db_column="CenaJednostkowa", max_digits=19, decimal_places=4
+    )  # Field name made lowercase.
+    ilość = models.SmallIntegerField(db_column="Ilość")  # Field name made lowercase.
+    rabat = models.FloatField(db_column="Rabat")  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = "PozycjeZamówienia"
+
+
 class Spedytorzy(models.Model):
     idspedytora = models.IntegerField(
-        db_column="IDspedytora"
+        db_column="IDspedytora", primary_key=True
     )  # Field name made lowercase.
     nazwafirmy = models.CharField(
         db_column="NazwaFirmy", max_length=40
@@ -243,13 +251,17 @@ class Spedytorzy(models.Model):
 
 class Zamówienia(models.Model):
     idzamówienia = models.IntegerField(
-        db_column="IDzamówienia"
+        db_column="IDzamówienia", primary_key=True
     )  # Field name made lowercase.
-    idklienta = models.CharField(
-        db_column="IDklienta", max_length=5
+    idklienta = models.ForeignKey(
+        Klienci, db_column="IDklienta", on_delete=models.CASCADE
     )  # Field name made lowercase.
-    idpracownika = models.IntegerField(
-        db_column="IDpracownika", blank=True, null=True
+    idpracownika = models.ForeignKey(
+        Pracownicy,
+        db_column="IDpracownika",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
     )  # Field name made lowercase.
     datazamówienia = models.DateTimeField(
         db_column="DataZamówienia", blank=True, null=True
@@ -260,8 +272,12 @@ class Zamówienia(models.Model):
     datawysyłki = models.DateTimeField(
         db_column="DataWysyłki", blank=True, null=True
     )  # Field name made lowercase.
-    idspedytora = models.IntegerField(
-        db_column="IDspedytora", blank=True, null=True
+    idspedytora = models.ForeignKey(
+        Spedytorzy,
+        db_column="IDspedytora",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
     )  # Field name made lowercase.
     fracht = models.DecimalField(
         db_column="Fracht", max_digits=19, decimal_places=4, blank=True, null=True
